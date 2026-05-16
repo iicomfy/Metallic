@@ -896,10 +896,330 @@ _add(Tweak("Disable Snap Assist", "UI / Explorer",
            reg_keys=[r"HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"],
            risk=RISK_SAFE))
 
+# ===== CPU / OVERCLOCK-LIKE POWER TWEAKS =====
+_add(Tweak(
+    "CPU: 100% Min Processor State", "Performance",
+    "Pins min processor state to 100% on AC and battery — prevents any downclocking under load.",
+    apply=[
+        "powercfg /setacvalueindex scheme_current sub_processor PROCTHROTTLEMIN 100",
+        "powercfg /setdcvalueindex scheme_current sub_processor PROCTHROTTLEMIN 100",
+        "powercfg /setactive scheme_current",
+    ],
+    undo=[
+        "powercfg /setacvalueindex scheme_current sub_processor PROCTHROTTLEMIN 5",
+        "powercfg /setdcvalueindex scheme_current sub_processor PROCTHROTTLEMIN 5",
+        "powercfg /setactive scheme_current",
+    ],
+    risk=RISK_MEDIUM,
+))
+_add(Tweak(
+    "CPU: 100% Max Processor State", "Performance",
+    "Pins max processor state to 100% — unlocks full turbo headroom.",
+    apply=[
+        "powercfg /setacvalueindex scheme_current sub_processor PROCTHROTTLEMAX 100",
+        "powercfg /setdcvalueindex scheme_current sub_processor PROCTHROTTLEMAX 100",
+        "powercfg /setactive scheme_current",
+    ],
+    risk=RISK_SAFE,
+))
+_add(Tweak(
+    "CPU: Disable Core Parking", "Performance",
+    "Forces all cores awake — better responsiveness, slightly higher idle power.",
+    apply=[
+        "powercfg /setacvalueindex scheme_current sub_processor CPMINCORES 100",
+        "powercfg /setdcvalueindex scheme_current sub_processor CPMINCORES 100",
+        "powercfg /setactive scheme_current",
+    ],
+    undo=[
+        "powercfg /setacvalueindex scheme_current sub_processor CPMINCORES 10",
+        "powercfg /setdcvalueindex scheme_current sub_processor CPMINCORES 10",
+        "powercfg /setactive scheme_current",
+    ],
+    risk=RISK_MEDIUM,
+))
+_add(Tweak(
+    "CPU: Aggressive Boost Mode", "Performance",
+    "Sets processor boost policy to AGGRESSIVE on AC for instant turbo.",
+    apply=[
+        "powercfg /setacvalueindex scheme_current sub_processor PERFBOOSTMODE 2",
+        "powercfg /setactive scheme_current",
+    ],
+    undo=[
+        "powercfg /setacvalueindex scheme_current sub_processor PERFBOOSTMODE 1",
+        "powercfg /setactive scheme_current",
+    ],
+    risk=RISK_SAFE,
+))
+_add(Tweak(
+    "CPU: Disable Idle States (C-states)", "Performance",
+    "Stops the CPU dropping into deep idle. Lower 1% lows in games, but hotter CPU.",
+    apply=[
+        "powercfg /setacvalueindex scheme_current sub_processor IDLEDISABLE 1",
+        "powercfg /setdcvalueindex scheme_current sub_processor IDLEDISABLE 1",
+        "powercfg /setactive scheme_current",
+    ],
+    undo=[
+        "powercfg /setacvalueindex scheme_current sub_processor IDLEDISABLE 0",
+        "powercfg /setdcvalueindex scheme_current sub_processor IDLEDISABLE 0",
+        "powercfg /setactive scheme_current",
+    ],
+    risk=RISK_HIGH,
+))
+_add(Tweak(
+    "CPU: Disable Processor Throttling on Battery", "Performance",
+    "Stops the CPU throttling when on battery (laptops).",
+    apply=[
+        "powercfg /setdcvalueindex scheme_current sub_processor THROTTLING 0",
+        "powercfg /setactive scheme_current",
+    ],
+    risk=RISK_MEDIUM,
+))
+_add(Tweak(
+    "PCIe: Disable Link State Power Management", "Performance",
+    "Stops PCIe lanes (GPU / NVMe) being throttled to save power.",
+    apply=[
+        "powercfg /setacvalueindex scheme_current sub_pciexpress ASPM 0",
+        "powercfg /setdcvalueindex scheme_current sub_pciexpress ASPM 0",
+        "powercfg /setactive scheme_current",
+    ],
+    undo=[
+        "powercfg /setacvalueindex scheme_current sub_pciexpress ASPM 2",
+        "powercfg /setdcvalueindex scheme_current sub_pciexpress ASPM 2",
+        "powercfg /setactive scheme_current",
+    ],
+    risk=RISK_SAFE,
+))
+_add(Tweak(
+    "USB: Disable Selective Suspend", "Performance",
+    "Stops Windows turning off USB devices to save power (helps mouse/audio).",
+    apply=[
+        "powercfg /setacvalueindex scheme_current sub_usb USBSELECT 0",
+        "powercfg /setdcvalueindex scheme_current sub_usb USBSELECT 0",
+        "powercfg /setactive scheme_current",
+    ],
+    undo=[
+        "powercfg /setacvalueindex scheme_current sub_usb USBSELECT 1",
+        "powercfg /setdcvalueindex scheme_current sub_usb USBSELECT 1",
+        "powercfg /setactive scheme_current",
+    ],
+    risk=RISK_SAFE,
+))
+_add(Tweak(
+    "Disk: Disable HDD Spin-Down", "Performance",
+    "Stops spinning disks parking after idle. (SSDs unaffected.)",
+    apply=[
+        "powercfg /change disk-timeout-ac 0",
+        "powercfg /change disk-timeout-dc 0",
+    ],
+    risk=RISK_SAFE,
+))
+_add(Tweak(
+    "Power: Disable Wake Timers", "Performance",
+    "Stops scheduled tasks waking the PC from sleep.",
+    apply=[
+        "powercfg /setacvalueindex scheme_current sub_sleep RTCWAKE 0",
+        "powercfg /setdcvalueindex scheme_current sub_sleep RTCWAKE 0",
+        "powercfg /setactive scheme_current",
+    ],
+    risk=RISK_SAFE,
+))
+
+# ===== ADVANCED NETWORK / PING TWEAKS =====
+_add(Tweak("Net: Disable QoS Bandwidth Reservation", "Network",
+    "Removes the 20% bandwidth Windows reserves for QoS.",
+    apply=[_reg_set(r"HKLM\SOFTWARE\Policies\Microsoft\Windows\Psched",
+                    "NonBestEffortLimit", "REG_DWORD", "0")],
+    undo=[_reg_del(r"HKLM\SOFTWARE\Policies\Microsoft\Windows\Psched",
+                   "NonBestEffortLimit")],
+    reg_keys=[r"HKLM\SOFTWARE\Policies\Microsoft\Windows\Psched"],
+    risk=RISK_SAFE))
+_add(Tweak("Net: Lower TcpTimedWaitDelay to 30s", "Network",
+    "Frees ephemeral ports faster after a connection closes — helps under heavy P2P loads.",
+    apply=[_reg_set(r"HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters",
+                    "TcpTimedWaitDelay", "REG_DWORD", "30")],
+    undo=[_reg_set(r"HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters",
+                   "TcpTimedWaitDelay", "REG_DWORD", "120")],
+    reg_keys=[r"HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters"],
+    risk=RISK_SAFE))
+_add(Tweak("Net: Max User Ports = 65534", "Network",
+    "Raises the ephemeral port range to its maximum.",
+    apply=[_reg_set(r"HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters",
+                    "MaxUserPort", "REG_DWORD", "65534")],
+    undo=[_reg_del(r"HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters",
+                   "MaxUserPort")],
+    reg_keys=[r"HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters"],
+    risk=RISK_SAFE))
+_add(Tweak("Net: Disable Multimedia Network Throttling", "Network",
+    "Stops Windows throttling network traffic when audio/video plays.",
+    apply=[_reg_set(r"HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile",
+                    "NetworkThrottlingIndex", "REG_DWORD", "0xFFFFFFFF")],
+    undo=[_reg_set(r"HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile",
+                   "NetworkThrottlingIndex", "REG_DWORD", "10")],
+    reg_keys=[r"HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile"],
+    risk=RISK_SAFE))
+_add(Tweak("Net: Disable NIC Power Saving", "Network",
+    "Disables 'Allow the computer to turn off this device' on every NIC.",
+    apply=['powershell -NoProfile -Command "Get-NetAdapter -Physical | ForEach-Object { $p = Get-NetAdapterPowerManagement -Name $_.Name -ErrorAction SilentlyContinue; if($p){ $p.AllowComputerToTurnOffDevice = \'Disabled\'; Set-NetAdapterPowerManagement -InputObject $p -ErrorAction SilentlyContinue } }"'],
+    undo=['powershell -NoProfile -Command "Get-NetAdapter -Physical | ForEach-Object { $p = Get-NetAdapterPowerManagement -Name $_.Name -ErrorAction SilentlyContinue; if($p){ $p.AllowComputerToTurnOffDevice = \'Enabled\'; Set-NetAdapterPowerManagement -InputObject $p -ErrorAction SilentlyContinue } }"'],
+    risk=RISK_SAFE))
+_add(Tweak("Net: Disable LSO (Large Send Offload v2)", "Network",
+    "Disables hardware LSOv2 on every NIC — often lowers jitter / micro-stutter.",
+    apply=['powershell -NoProfile -Command "Get-NetAdapter -Physical | Disable-NetAdapterLso -ErrorAction SilentlyContinue"'],
+    undo=['powershell -NoProfile -Command "Get-NetAdapter -Physical | Enable-NetAdapterLso -ErrorAction SilentlyContinue"'],
+    risk=RISK_MEDIUM))
+_add(Tweak("Net: Disable RSC (Receive Segment Coalescing)", "Network",
+    "Disables RSC, which can add latency on fast home links.",
+    apply=["netsh int tcp set global rsc=disabled"],
+    undo=["netsh int tcp set global rsc=default"],
+    risk=RISK_SAFE))
+_add(Tweak("Net: Enable Compound TCP", "Network",
+    "Switches the congestion algorithm to Compound TCP — usually better for gaming.",
+    apply=["netsh int tcp set supplemental Internet congestionprovider=ctcp"],
+    undo=["netsh int tcp set supplemental Internet congestionprovider=default"],
+    risk=RISK_SAFE))
+_add(Tweak("Net: NIC Interrupt Moderation Off", "Network",
+    "Asks every NIC to disable interrupt moderation for lower latency (hardware permitting).",
+    apply=['powershell -NoProfile -Command "Get-NetAdapter -Physical | ForEach-Object { Set-NetAdapterAdvancedProperty -Name $_.Name -DisplayName \'Interrupt Moderation\' -DisplayValue \'Disabled\' -ErrorAction SilentlyContinue }"'],
+    undo=['powershell -NoProfile -Command "Get-NetAdapter -Physical | ForEach-Object { Set-NetAdapterAdvancedProperty -Name $_.Name -DisplayName \'Interrupt Moderation\' -DisplayValue \'Enabled\' -ErrorAction SilentlyContinue }"'],
+    risk=RISK_MEDIUM))
+_add(Tweak("Net: Disable IPv6 Tunneling (Teredo/6to4/ISATAP)", "Network",
+    "Disables IPv6 transition tech so game traffic runs pure IPv4.",
+    apply=[
+        "netsh interface teredo set state disabled",
+        "netsh interface 6to4 set state disabled",
+        "netsh interface isatap set state disabled",
+    ],
+    undo=[
+        "netsh interface teredo set state default",
+        "netsh interface 6to4 set state default",
+        "netsh interface isatap set state default",
+    ],
+    risk=RISK_SAFE))
+_add(Tweak("Net: Use Google DNS (8.8.8.8)", "Network",
+    "Sets primary/secondary DNS to Google on every up interface.",
+    apply=['powershell -NoProfile -Command "Get-NetAdapter -Physical | Where-Object Status -eq Up | ForEach-Object { Set-DnsClientServerAddress -InterfaceIndex $_.ifIndex -ServerAddresses 8.8.8.8,8.8.4.4 }"'],
+    undo=['powershell -NoProfile -Command "Get-NetAdapter -Physical | Where-Object Status -eq Up | ForEach-Object { Set-DnsClientServerAddress -InterfaceIndex $_.ifIndex -ResetServerAddresses }"'],
+    risk=RISK_SAFE))
+_add(Tweak("Net: Disable LMHOSTS Lookup", "Network",
+    "Skips the legacy NetBIOS LMHOSTS file lookup.",
+    apply=['powershell -NoProfile -Command "Get-WmiObject Win32_NetworkAdapterConfiguration | Where-Object {$_.IPEnabled -eq $true} | ForEach-Object { $_.EnableWINS($false,$false) | Out-Null }"'],
+    risk=RISK_SAFE))
+
+# ===== GAMES (per-title optimisations) =====
+def _game_optimize(name: str, exe: str) -> Tweak:
+    """Compose a per-game optimisation: disable fullscreen optimisations,
+    force the discrete GPU, and prepare the per-app GPU preference entry."""
+    layers_key = r"HKCU\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers"
+    layers_val = "~ DISABLEDXMAXIMIZEDWINDOWEDMODE HIGHDPIAWARE"
+    gpu_key = r"HKCU\SOFTWARE\Microsoft\DirectX\UserGpuPreferences"
+    return Tweak(
+        f"Optimize: {name}", "Games",
+        f"For {exe}: disables Windows Fullscreen Optimisations, marks the app "
+        f"DPI-aware, and forces the dedicated GPU profile.",
+        apply=[
+            f'reg add "{layers_key}" /v "{exe}" /t REG_SZ /d "{layers_val}" /f',
+            f'reg add "{gpu_key}" /v "{exe}" /t REG_SZ /d "GpuPreference=2;" /f',
+        ],
+        undo=[
+            f'reg delete "{layers_key}" /v "{exe}" /f',
+            f'reg delete "{gpu_key}" /v "{exe}" /f',
+        ],
+        reg_keys=[layers_key, gpu_key],
+        risk=RISK_SAFE,
+    )
+
+_GAMES = [
+    ("Fortnite",              "FortniteClient-Win64-Shipping.exe"),
+    ("Valorant",              "VALORANT-Win64-Shipping.exe"),
+    ("Counter-Strike 2",      "cs2.exe"),
+    ("Apex Legends",          "r5apex.exe"),
+    ("Call of Duty: Warzone", "cod.exe"),
+    ("Overwatch 2",           "Overwatch.exe"),
+    ("League of Legends",     "League of Legends.exe"),
+    ("Rainbow Six Siege",     "RainbowSix.exe"),
+    ("Rocket League",         "RocketLeague.exe"),
+    ("PUBG: Battlegrounds",   "TslGame.exe"),
+    ("GTA V",                 "GTA5.exe"),
+    ("Roblox",                "RobloxPlayerBeta.exe"),
+    ("Minecraft (Java)",      "javaw.exe"),
+    ("Genshin Impact",        "GenshinImpact.exe"),
+    ("Marvel Rivals",         "MarvelRivals.exe"),
+]
+for _gn, _ge in _GAMES:
+    _add(_game_optimize(_gn, _ge))
+
+_add(Tweak("Launch Options Cheat-Sheet (informational)", "Games",
+    "Recommended launcher flags (copy into Steam/Epic/standalone launchers):\n"
+    "• CS2:        -high -novid -tickrate 128 +fps_max 0\n"
+    "• Apex:       +fps_max unlimited -dev -preload -forcenovsync\n"
+    "• Fortnite:   -dx12 -limitclientticks\n"
+    "• GTA V:      -high -nomemrestrict\n"
+    "• Rocket Lg.: -high -nojoy\n"
+    "• PUBG:       -high -USEALLAVAILABLECORES -malloc=system\n"
+    "• Roblox:     --no-pin --high-priority\n"
+    "• Valorant:   (no launch options — use in-game settings)\n"
+    "This tweak takes NO action — it's a notes panel.",
+    apply=[], undo=[], risk=RISK_SAFE))
+_add(Tweak("Games: Steam Big Picture Acceleration", "Games",
+    "Marks all Steam-managed games with the high-perf GPU preference key "
+    "(Steam will inherit it on next launch).",
+    apply=[_reg_set(r"HKCU\SOFTWARE\Microsoft\DirectX\UserGpuPreferences",
+                    "DirectXUserGlobalSettings", "REG_SZ",
+                    "VRROptimizeEnable=0;SwapEffectUpgradeEnable=1;")],
+    reg_keys=[r"HKCU\SOFTWARE\Microsoft\DirectX\UserGpuPreferences"],
+    risk=RISK_SAFE))
+
 # ---------------------------------------------------------------------------
 # Presets / profiles
 # ---------------------------------------------------------------------------
 PRESETS = {
+    "Pro Gamer (Full Stack)": [
+        # max-out CPU/power
+        "Enable Ultimate Performance Power Plan",
+        "CPU: 100% Min Processor State",
+        "CPU: 100% Max Processor State",
+        "CPU: Disable Core Parking",
+        "CPU: Aggressive Boost Mode",
+        "PCIe: Disable Link State Power Management",
+        "USB: Disable Selective Suspend",
+        "Enable Hardware-Accelerated GPU Scheduling",
+        "Maximum CPU Scheduling for Programs",
+        # gaming
+        "Enable Game Mode",
+        "Disable Xbox Game Bar (overlay)",
+        "Prioritize Games (SystemResponsiveness)",
+        "Boost Games MMCSS Priority",
+        "Disable Fullscreen Optimizations (global)",
+        # latency
+        "Disable Nagle's Algorithm (lower ping)",
+        "Net: Disable QoS Bandwidth Reservation",
+        "Net: Lower TcpTimedWaitDelay to 30s",
+        "Net: Max User Ports = 65534",
+        "Net: Disable Multimedia Network Throttling",
+        "Net: Disable NIC Power Saving",
+        "Net: Disable RSC (Receive Segment Coalescing)",
+        "Net: Enable Compound TCP",
+        "Net: Disable IPv6 Tunneling (Teredo/6to4/ISATAP)",
+        # bg cleanup
+        "Disable Search Indexer",
+        "Disable SysMain (Superfetch)",
+        "Disable Background Apps (UWP)",
+    ],
+    "Low Latency Network": [
+        "Disable Nagle's Algorithm (lower ping)",
+        "Net: Disable QoS Bandwidth Reservation",
+        "Net: Disable Multimedia Network Throttling",
+        "Net: Disable NIC Power Saving",
+        "Net: Disable LSO (Large Send Offload v2)",
+        "Net: Disable RSC (Receive Segment Coalescing)",
+        "Net: Enable Compound TCP",
+        "Net: NIC Interrupt Moderation Off",
+        "Net: Disable IPv6 Tunneling (Teredo/6to4/ISATAP)",
+        "Net: Lower TcpTimedWaitDelay to 30s",
+        "Net: Max User Ports = 65534",
+        "Enable DNS over HTTPS (DoH)",
+        "Use Cloudflare 1.1.1.1 DNS",
+    ],
     "Gaming": [
         "Enable Ultimate Performance Power Plan",
         "Enable Game Mode",
@@ -972,7 +1292,7 @@ PRESETS = {
     ],
 }
 
-CATEGORIES = ["Performance", "Privacy", "Gaming", "Debloat", "Network", "Services", "UI / Explorer"]
+CATEGORIES = ["Performance", "Privacy", "Gaming", "Games", "Debloat", "Network", "Services", "UI / Explorer"]
 
 
 # ---------------------------------------------------------------------------
