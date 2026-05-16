@@ -35,7 +35,13 @@ REM ---- Install required deps ----
 echo.
 echo Installing dependencies (customtkinter, pyinstaller)...
 %PY% -m pip install --upgrade pip --quiet
-%PY% -m pip install --quiet customtkinter==5.2.2 pyinstaller==6.10.0
+%PY% -m pip install --upgrade --quiet customtkinter pyinstaller
+if errorlevel 1 (
+    echo.
+    echo First attempt failed - retrying without --quiet to show full output...
+    %PY% -m pip install --upgrade customtkinter pyinstaller
+)
+%PY% -c "import customtkinter, PyInstaller; print('  customtkinter', customtkinter.__version__); print('  pyinstaller ', PyInstaller.__version__)" 2>nul
 if errorlevel 1 (
     echo ERROR: Failed to install dependencies. Check your internet connection.
     pause
