@@ -1,9 +1,9 @@
 @echo off
 setlocal
-title Aphrodite Tweaks Pro - Builder
+title Blood Tweaks - Builder
 
 echo ================================================
-echo Aphrodite Tweaks Pro v3.0.0 - Build Script
+echo Blood Tweaks v3.1.0 - Build Script
 echo ================================================
 echo.
 
@@ -31,7 +31,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
-REM ---- Install required deps ----
+REM ---- Install required deps (no strict pins; pip picks compatible versions) ----
 echo.
 echo Installing dependencies (customtkinter, pyinstaller)...
 %PY% -m pip install --upgrade pip --quiet
@@ -48,7 +48,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
-REM ---- Admin check (just a friendly notice) ----
+REM ---- Admin notice ----
 net session >nul 2>&1
 if errorlevel 1 (
     echo [WARNING] Not running as Administrator.
@@ -64,32 +64,32 @@ echo ================================================
 echo.
 
 REM Clean previous artefacts to avoid stale specs
-if exist AphroditeTweaksPro.exe del /q AphroditeTweaksPro.exe
+if exist BloodTweaks.exe del /q BloodTweaks.exe
 if exist build rmdir /s /q build
-if exist AphroditeTweaksPro.spec del /q AphroditeTweaksPro.spec
+if exist BloodTweaks.spec del /q BloodTweaks.spec
 
 %PY% -m PyInstaller ^
     --onefile ^
     --noconfirm ^
     --windowed ^
     --clean ^
-    --name AphroditeTweaksPro ^
+    --name BloodTweaks ^
     --collect-all customtkinter ^
     --hidden-import=tkinter ^
     --distpath . ^
     --workpath build ^
     --specpath . ^
-    aphrodite_tweaks_pro.py
+    blood_tweaks.py
 
-if exist "AphroditeTweaksPro.exe" (
+if exist "BloodTweaks.exe" (
     echo.
     echo ================================================
     echo BUILD SUCCESS!
-    echo Output: %CD%\AphroditeTweaksPro.exe
+    echo Output: %CD%\BloodTweaks.exe
     echo ================================================
     echo.
     echo NEXT STEPS:
-    echo   1. Right-click AphroditeTweaksPro.exe
+    echo   1. Right-click BloodTweaks.exe
     echo   2. Choose "Run as administrator"
     echo   3. Optionally create a System Restore Point from the app
     echo.

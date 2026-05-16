@@ -50,8 +50,8 @@ from tkinter import messagebox, filedialog
 # ---------------------------------------------------------------------------
 # Constants & paths
 # ---------------------------------------------------------------------------
-APP_NAME = "Aphrodite Tweaks Pro"
-APP_VERSION = "3.0.0"
+APP_NAME = "Blood Tweaks"
+APP_VERSION = "3.1.0"
 IS_WINDOWS = sys.platform.startswith("win")
 
 # When frozen by PyInstaller use the EXE folder, otherwise the script folder
@@ -60,36 +60,37 @@ if getattr(sys, "frozen", False):
 else:
     APP_DIR = Path(__file__).resolve().parent
 
-DATA_DIR = APP_DIR / "AphroditeData"
+DATA_DIR = APP_DIR / "BloodData"
 BACKUP_DIR = DATA_DIR / "backups"
 LOG_DIR = DATA_DIR / "logs"
 STATE_FILE = DATA_DIR / "state.json"
 HISTORY_FILE = DATA_DIR / "history.json"
-LOG_FILE = LOG_DIR / "aphrodite.log"
+LOG_FILE = LOG_DIR / "blood.log"
 
 for _d in (DATA_DIR, BACKUP_DIR, LOG_DIR):
     _d.mkdir(parents=True, exist_ok=True)
 
 # ---------------------------------------------------------------------------
-# Colors  (consciously NOT the typical "purple-on-white AI slop" palette -
-#         we lean into a deep midnight base with rose-violet accents)
+# Colors  -  "Noir + Blood" palette
+#   Deep near-black base, charcoal surfaces, crimson primary, scarlet hover.
+#   Deliberately avoids the typical purple-gradient-on-white AI-slop look.
 # ---------------------------------------------------------------------------
 COL = {
-    "bg":          "#0b0b14",
-    "bg_alt":      "#11111d",
-    "card":        "#171727",
-    "card_hover":  "#1f1f33",
-    "border":      "#262640",
-    "text":        "#f4f4ff",
-    "text_dim":    "#8a8aa8",
-    "text_muted":  "#5a5a78",
-    "accent":      "#c084fc",   # rose-violet
-    "accent_hov":  "#d8b4fe",
-    "accent_deep": "#7c3aed",
-    "ok":          "#34d399",
-    "warn":        "#fbbf24",
-    "danger":      "#f87171",
-    "info":        "#60a5fa",
+    "bg":          "#0a0a0c",   # near-black canvas
+    "bg_alt":      "#0f0f12",   # sidebar / toolbar
+    "card":        "#161619",   # tweak card surface
+    "card_hover":  "#1e1e22",   # hovered card
+    "border":      "#23232a",   # hairline divider
+    "text":        "#f5f5f7",   # primary text
+    "text_dim":    "#9a9aa3",   # secondary text
+    "text_muted":  "#5c5c66",   # captions
+    "accent":      "#e11d48",   # rose-600 - blood red
+    "accent_hov":  "#f43f5e",   # rose-500 - hover/highlight
+    "accent_deep": "#9f1239",   # rose-800 - pressed / deep
+    "ok":          "#22c55e",
+    "warn":        "#f59e0b",
+    "danger":      "#ef4444",
+    "info":        "#38bdf8",
 }
 
 ctk.set_appearance_mode("dark")
@@ -505,12 +506,12 @@ _add(Tweak(
     "Block Telemetry Domains (hosts file)", "Privacy",
     "Adds Microsoft telemetry endpoints to the hosts file. Backed up first.",
     apply=['powershell -NoProfile -ExecutionPolicy Bypass -Command "$h = \\"$env:SystemRoot\\drivers\\etc\\hosts\\"; '
-           'Copy-Item $h \\"$env:SystemRoot\\drivers\\etc\\hosts.aphrodite.bak\\" -Force; '
+           'Copy-Item $h \\"$env:SystemRoot\\drivers\\etc\\hosts.blood.bak\\" -Force; '
            '$lines = @(\\"0.0.0.0 vortex.data.microsoft.com\\",\\"0.0.0.0 settings-win.data.microsoft.com\\",'
            '\\"0.0.0.0 telemetry.microsoft.com\\",\\"0.0.0.0 watson.telemetry.microsoft.com\\",'
            '\\"0.0.0.0 v10.events.data.microsoft.com\\",\\"0.0.0.0 activity.windows.com\\"); '
            'foreach($l in $lines){if(-not (Select-String -Path $h -Pattern ([regex]::Escape($l)) -Quiet)){Add-Content -Path $h -Value $l}}; ipconfig /flushdns | Out-Null"'],
-    undo=['powershell -NoProfile -Command "if(Test-Path \\"$env:SystemRoot\\drivers\\etc\\hosts.aphrodite.bak\\"){Copy-Item \\"$env:SystemRoot\\drivers\\etc\\hosts.aphrodite.bak\\" \\"$env:SystemRoot\\drivers\\etc\\hosts\\" -Force}"'],
+    undo=['powershell -NoProfile -Command "if(Test-Path \\"$env:SystemRoot\\drivers\\etc\\hosts.blood.bak\\"){Copy-Item \\"$env:SystemRoot\\drivers\\etc\\hosts.blood.bak\\" \\"$env:SystemRoot\\drivers\\etc\\hosts\\" -Force}"'],
     risk=RISK_MEDIUM,
 ))
 _add(Tweak(
@@ -1035,7 +1036,7 @@ def backup_reg_keys(keys: list[str], tweak_name: str) -> Optional[Path]:
     return folder
 
 
-def create_system_restore_point(description: str = "Aphrodite Tweaks Pro") -> bool:
+def create_system_restore_point(description: str = "Blood Tweaks") -> bool:
     """Create a Windows System Restore checkpoint."""
     if not IS_WINDOWS:
         return False
@@ -1111,28 +1112,40 @@ class TweakRow(ctk.CTkFrame):
     """One row in the tweak list. Card layout, hover, risk pill, switch."""
 
     def __init__(self, master, tweak: Tweak, applied: bool, on_toggle: Callable[[str, bool], None]):
-        super().__init__(master, fg_color=COL["card"], corner_radius=12,
-                         border_width=1, border_color=COL["border"])
+        super().__init__(master, fg_color=COL["card"], corner_radius=14,
+                         border_width=0)
         self.tweak = tweak
         self.on_toggle = on_toggle
         self._build(applied)
-        self.bind("<Enter>", lambda _e: self.configure(fg_color=COL["card_hover"]))
-        self.bind("<Leave>", lambda _e: self.configure(fg_color=COL["card"]))
+        self.bind("<Enter>", self._on_enter)
+        self.bind("<Leave>", self._on_leave)
+
+    def _on_enter(self, _e):
+        self.configure(fg_color=COL["card_hover"])
+
+    def _on_leave(self, _e):
+        self.configure(fg_color=COL["card"])
 
     def _build(self, applied: bool):
+        # Left risk stripe (acts as a coloured accent bar)
+        stripe = ctk.CTkFrame(self, fg_color=RISK_COLOR[self.tweak.risk],
+                              width=4, corner_radius=2)
+        stripe.pack(side="left", fill="y", padx=(2, 0), pady=8)
+
         wrap = ctk.CTkFrame(self, fg_color="transparent")
-        wrap.pack(fill="x", padx=14, pady=10)
+        wrap.pack(side="left", fill="both", expand=True, padx=16, pady=12)
 
         # left: switch
         self.var = tk.BooleanVar(value=False)
         self.switch = ctk.CTkSwitch(
             wrap, text="", variable=self.var,
-            width=42, switch_width=42, switch_height=22,
+            width=44, switch_width=44, switch_height=22,
             progress_color=COL["accent"], button_color=COL["text"],
             button_hover_color=COL["accent_hov"],
+            fg_color=COL["border"],
             command=lambda: self.on_toggle(self.tweak.name, self.var.get()),
         )
-        self.switch.pack(side="left", padx=(0, 14))
+        self.switch.pack(side="left", padx=(0, 16))
 
         # middle: name + desc + applied marker
         mid = ctk.CTkFrame(wrap, fg_color="transparent")
@@ -1143,23 +1156,22 @@ class TweakRow(ctk.CTkFrame):
                      font=("Segoe UI Semibold", 14), anchor="w").pack(side="left")
         if applied:
             ctk.CTkLabel(title_row, text=" APPLIED ", text_color=COL["bg"],
-                         fg_color=COL["ok"], corner_radius=6,
+                         fg_color=COL["ok"], corner_radius=8,
                          font=("Segoe UI", 9, "bold")).pack(side="left", padx=8)
         if self.tweak.reboot:
             ctk.CTkLabel(title_row, text=" REBOOT ", text_color=COL["bg"],
-                         fg_color=COL["info"], corner_radius=6,
+                         fg_color=COL["info"], corner_radius=8,
                          font=("Segoe UI", 9, "bold")).pack(side="left", padx=4)
         ctk.CTkLabel(mid, text=self.tweak.desc, text_color=COL["text_dim"],
                      font=("Segoe UI", 11), anchor="w",
-                     wraplength=620, justify="left").pack(fill="x", anchor="w", pady=(2, 0))
+                     wraplength=640, justify="left").pack(fill="x", anchor="w", pady=(3, 0))
 
-        # right: risk badge
+        # right: risk badge (text-only, colored to match the stripe)
         ctk.CTkLabel(
             wrap, text=RISK_LABEL[self.tweak.risk],
-            text_color=COL["bg"], fg_color=RISK_COLOR[self.tweak.risk],
-            corner_radius=10, width=78, height=24,
-            font=("Segoe UI", 9, "bold"),
-        ).pack(side="right", padx=6)
+            text_color=RISK_COLOR[self.tweak.risk], fg_color="transparent",
+            font=("Segoe UI", 10, "bold"),
+        ).pack(side="right", padx=10)
 
 
 # ---------------------------------------------------------------------------
@@ -1168,9 +1180,9 @@ class TweakRow(ctk.CTkFrame):
 class AphroditeApp(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title(f"{APP_NAME}  v{APP_VERSION}")
-        self.geometry("1240x820")
-        self.minsize(1080, 720)
+        self.title(f"{APP_NAME}  ·  v{APP_VERSION}")
+        self.geometry("1280x840")
+        self.minsize(1120, 740)
         self.configure(fg_color=COL["bg"])
 
         # persistent state
@@ -1195,58 +1207,69 @@ class AphroditeApp(ctk.CTk):
     # --------------------------- UI ----------------------------------
     def _build_layout(self):
         # Sidebar
-        self.sidebar = ctk.CTkFrame(self, fg_color=COL["bg_alt"], width=240, corner_radius=0)
+        self.sidebar = ctk.CTkFrame(self, fg_color=COL["bg_alt"], width=248, corner_radius=0)
         self.sidebar.pack(side="left", fill="y")
         self.sidebar.pack_propagate(False)
 
         brand = ctk.CTkFrame(self.sidebar, fg_color="transparent")
-        brand.pack(fill="x", padx=20, pady=(22, 18))
-        ctk.CTkLabel(brand, text="APHRODITE",
-                     font=("Segoe UI Black", 18), text_color=COL["accent"]).pack(anchor="w")
-        ctk.CTkLabel(brand, text="Tweaks Pro",
-                     font=("Segoe UI", 12), text_color=COL["text_dim"]).pack(anchor="w")
+        brand.pack(fill="x", padx=22, pady=(26, 20))
+        # red blood-drop glyph + wordmark
+        title_row = ctk.CTkFrame(brand, fg_color="transparent")
+        title_row.pack(fill="x")
+        ctk.CTkLabel(title_row, text="◆", font=("Segoe UI", 22, "bold"),
+                     text_color=COL["accent"]).pack(side="left", padx=(0, 8))
+        ctk.CTkLabel(title_row, text="BLOOD",
+                     font=("Segoe UI Black", 20), text_color=COL["text"]).pack(side="left")
+        ctk.CTkLabel(brand, text="Tweaks  ·  Windows Optimizer",
+                     font=("Segoe UI", 11), text_color=COL["text_dim"]).pack(anchor="w", pady=(2, 0))
         ctk.CTkLabel(brand, text=f"v{APP_VERSION}",
-                     font=("Segoe UI", 9), text_color=COL["text_muted"]).pack(anchor="w", pady=(4, 0))
+                     font=("Segoe UI", 9), text_color=COL["text_muted"]).pack(anchor="w", pady=(2, 0))
+
+        # subtle divider
+        ctk.CTkFrame(self.sidebar, height=1, fg_color=COL["border"]).pack(fill="x", padx=18, pady=(2, 10))
 
         ctk.CTkLabel(self.sidebar, text="CATEGORIES", text_color=COL["text_muted"],
-                     font=("Segoe UI Semibold", 10)).pack(anchor="w", padx=20, pady=(8, 4))
+                     font=("Segoe UI Semibold", 10)).pack(anchor="w", padx=22, pady=(6, 6))
         self.cat_buttons: dict[str, ctk.CTkButton] = {}
         for cat in CATEGORIES:
             btn = ctk.CTkButton(
-                self.sidebar, text=cat, anchor="w", height=36,
+                self.sidebar, text="   " + cat, anchor="w", height=38,
                 fg_color="transparent", hover_color=COL["card"],
                 text_color=COL["text_dim"], font=("Segoe UI", 12),
-                corner_radius=8,
+                corner_radius=10,
                 command=lambda c=cat: self._switch_category(c),
             )
-            btn.pack(fill="x", padx=12, pady=2)
+            btn.pack(fill="x", padx=14, pady=2)
             self.cat_buttons[cat] = btn
 
+        ctk.CTkFrame(self.sidebar, height=1, fg_color=COL["border"]).pack(fill="x", padx=18, pady=(14, 0))
+
         ctk.CTkLabel(self.sidebar, text="PRESETS", text_color=COL["text_muted"],
-                     font=("Segoe UI Semibold", 10)).pack(anchor="w", padx=20, pady=(16, 4))
+                     font=("Segoe UI Semibold", 10)).pack(anchor="w", padx=22, pady=(14, 6))
         for preset in PRESETS.keys():
             ctk.CTkButton(
-                self.sidebar, text=preset, anchor="w", height=32,
+                self.sidebar, text="   " + preset, anchor="w", height=34,
                 fg_color="transparent", hover_color=COL["card"],
                 text_color=COL["text"], font=("Segoe UI", 12),
-                corner_radius=8,
+                corner_radius=10,
                 command=lambda p=preset: self._apply_preset(p),
-            ).pack(fill="x", padx=12, pady=1)
+            ).pack(fill="x", padx=14, pady=1)
 
         # Bottom of sidebar - safety
         safety = ctk.CTkFrame(self.sidebar, fg_color="transparent")
-        safety.pack(side="bottom", fill="x", padx=12, pady=14)
+        safety.pack(side="bottom", fill="x", padx=14, pady=16)
         ctk.CTkButton(
-            safety, text="Create Restore Point", height=36,
-            fg_color=COL["accent_deep"], hover_color=COL["accent"],
-            text_color=COL["text"], font=("Segoe UI Semibold", 11),
+            safety, text="Create Restore Point", height=40,
+            fg_color=COL["accent"], hover_color=COL["accent_hov"],
+            text_color=COL["text"], font=("Segoe UI Semibold", 12),
+            corner_radius=10,
             command=self._make_restore_point,
         ).pack(fill="x", pady=4)
         ctk.CTkButton(
-            safety, text="Open Backups Folder", height=32,
+            safety, text="Open Backups Folder", height=34,
             fg_color="transparent", border_width=1, border_color=COL["border"],
             hover_color=COL["card"], text_color=COL["text_dim"],
-            font=("Segoe UI", 11),
+            font=("Segoe UI", 11), corner_radius=10,
             command=self._open_backups,
         ).pack(fill="x", pady=4)
 
@@ -1255,73 +1278,78 @@ class AphroditeApp(ctk.CTk):
         main.pack(side="left", fill="both", expand=True)
 
         # Top bar: search + admin status
-        topbar = ctk.CTkFrame(main, fg_color="transparent", height=70)
-        topbar.pack(fill="x", padx=24, pady=(20, 6))
+        topbar = ctk.CTkFrame(main, fg_color="transparent", height=80)
+        topbar.pack(fill="x", padx=28, pady=(22, 4))
         topbar.pack_propagate(False)
 
         self.search_entry = ctk.CTkEntry(
-            topbar, placeholder_text="Search tweaks…",
+            topbar, placeholder_text="🔍   Search tweaks…",
             fg_color=COL["card"], border_color=COL["border"], border_width=1,
             text_color=COL["text"], placeholder_text_color=COL["text_muted"],
-            font=("Segoe UI", 12), height=42, corner_radius=10,
+            font=("Segoe UI", 13), height=46, corner_radius=12,
         )
         self.search_entry.pack(side="left", fill="x", expand=True)
         self.search_entry.bind("<KeyRelease>", lambda _e: self._on_search())
 
         admin_ok = is_admin()
         adm_color = COL["ok"] if admin_ok else COL["danger"]
-        adm_text = "ADMIN ON" if admin_ok else "NOT ADMIN"
-        ctk.CTkLabel(topbar, text=adm_text, fg_color=adm_color, text_color=COL["bg"],
-                     corner_radius=8, font=("Segoe UI", 11, "bold"),
-                     width=110, height=32).pack(side="right", padx=(12, 0))
+        adm_text = "● ADMIN" if admin_ok else "● NOT ADMIN"
+        ctk.CTkLabel(topbar, text=adm_text, fg_color="transparent",
+                     text_color=adm_color, font=("Segoe UI Semibold", 12),
+                     ).pack(side="right", padx=(16, 0))
 
         # Category title + count
         self.title_lbl = ctk.CTkLabel(main, text="", text_color=COL["text"],
-                                      font=("Segoe UI Black", 22))
-        self.title_lbl.pack(anchor="w", padx=24, pady=(6, 0))
+                                      font=("Segoe UI Black", 24))
+        self.title_lbl.pack(anchor="w", padx=28, pady=(4, 0))
         self.subtitle_lbl = ctk.CTkLabel(main, text="", text_color=COL["text_dim"],
                                          font=("Segoe UI", 12))
-        self.subtitle_lbl.pack(anchor="w", padx=24, pady=(0, 12))
+        self.subtitle_lbl.pack(anchor="w", padx=28, pady=(0, 14))
 
         # Tweak list scrollable
         self.list_frame = ctk.CTkScrollableFrame(
             main, fg_color=COL["bg"], scrollbar_button_color=COL["accent_deep"],
             scrollbar_button_hover_color=COL["accent"], corner_radius=0,
         )
-        self.list_frame.pack(fill="both", expand=True, padx=18, pady=(0, 8))
+        self.list_frame.pack(fill="both", expand=True, padx=22, pady=(0, 8))
 
         # Bottom action bar
-        action = ctk.CTkFrame(main, fg_color=COL["bg_alt"], height=72,
+        action = ctk.CTkFrame(main, fg_color=COL["bg_alt"], height=78,
                               corner_radius=0)
         action.pack(fill="x", side="bottom")
         action.pack_propagate(False)
 
         self.status_lbl = ctk.CTkLabel(action, text="Ready", text_color=COL["text_dim"],
                                        font=("Segoe UI", 12))
-        self.status_lbl.pack(side="left", padx=20)
+        self.status_lbl.pack(side="left", padx=24)
 
-        self.progress = ctk.CTkProgressBar(action, width=220, progress_color=COL["accent"])
+        self.progress = ctk.CTkProgressBar(action, width=240, height=6,
+                                           progress_color=COL["accent"],
+                                           fg_color=COL["card"], corner_radius=6)
         self.progress.set(0)
-        self.progress.pack(side="left", padx=10)
+        self.progress.pack(side="left", padx=14)
 
         ctk.CTkButton(
-            action, text="View Logs", height=38, width=110,
+            action, text="View Logs", height=40, width=110,
             fg_color="transparent", border_width=1, border_color=COL["border"],
-            hover_color=COL["card"], text_color=COL["text_dim"],
-            font=("Segoe UI", 11), command=self._show_logs,
+            hover_color=COL["card"], text_color=COL["text"],
+            font=("Segoe UI", 11), corner_radius=10,
+            command=self._show_logs,
         ).pack(side="right", padx=8)
         ctk.CTkButton(
-            action, text="Undo Last", height=38, width=120,
+            action, text="Undo Last", height=40, width=120,
             fg_color="transparent", border_width=1, border_color=COL["danger"],
             hover_color=COL["card"], text_color=COL["danger"],
-            font=("Segoe UI Semibold", 12), command=self._undo_last,
+            font=("Segoe UI Semibold", 12), corner_radius=10,
+            command=self._undo_last,
         ).pack(side="right", padx=8)
         ctk.CTkButton(
-            action, text="Apply Selected", height=38, width=160,
-            fg_color=COL["accent_deep"], hover_color=COL["accent"],
-            text_color=COL["text"], font=("Segoe UI Semibold", 12),
+            action, text="Apply Selected", height=40, width=170,
+            fg_color=COL["accent"], hover_color=COL["accent_hov"],
+            text_color=COL["text"], font=("Segoe UI Semibold", 13),
+            corner_radius=10,
             command=self._apply_selected,
-        ).pack(side="right", padx=8)
+        ).pack(side="right", padx=12)
 
         # Mark first category active
         self._highlight_category(self.current_category)
@@ -1331,9 +1359,11 @@ class AphroditeApp(ctk.CTk):
     def _highlight_category(self, cat: str):
         for c, b in self.cat_buttons.items():
             if c == cat:
-                b.configure(fg_color=COL["card"], text_color=COL["text"])
+                b.configure(fg_color=COL["card"], text_color=COL["text"],
+                            text=f"▍  {c}")
             else:
-                b.configure(fg_color="transparent", text_color=COL["text_dim"])
+                b.configure(fg_color="transparent", text_color=COL["text_dim"],
+                            text=f"   {c}")
 
     def _switch_category(self, cat: str):
         self.current_category = cat
@@ -1380,7 +1410,7 @@ class AphroditeApp(ctk.CTk):
             row = TweakRow(self.list_frame, t,
                            applied=bool(self.applied.get(t.name)),
                            on_toggle=self._toggle)
-            row.pack(fill="x", pady=6, padx=4)
+            row.pack(fill="x", pady=7, padx=4)
             if t.name in self.selected:
                 row.var.set(True)
             self.row_widgets.append(row)
